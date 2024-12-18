@@ -183,6 +183,23 @@ class QueryLogsTest < ActiveRecord::TestCase
     end
   end
 
+  def test_filtered_queries_are_not_commented
+    ActiveRecord::QueryLogs.tags = [ :application ]
+    ActiveRecord::QueryLogs.filtered_queries = %w[COMMIT SET]
+
+    assert_queries_match(/\*application:active_record\*/) do
+      ActiveRecord::Base.lease_connection.execute "SELECT 1"
+    end
+
+    assert_queries_match(%r{BEGIN$}) do
+      ActiveRecord::Base.lease_connection.execute "BEGIN"
+    end
+
+    assert_queries_match(%r{SET client_encoding = 'UTF8'$}) do
+      ActiveRecord::Base.lease_connection.execute "SET client_encoding = 'UTF8'"
+    end
+  end
+
   def test_sql_commenter_format
     ActiveRecord::QueryLogs.tags_formatter = :sqlcommenter
     ActiveRecord::QueryLogs.tags = [:application]

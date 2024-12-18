@@ -112,7 +112,7 @@ module ActiveRecord
 
     class << self
       attr_reader :tags, :taggings, :tags_formatter # :nodoc:
-      attr_accessor :prepend_comment, :cache_query_log_tags # :nodoc:
+      attr_accessor :filtered_queries, :prepend_comment, :cache_query_log_tags # :nodoc:
 
       def taggings=(taggings) # :nodoc:
         @taggings = taggings.freeze
@@ -137,6 +137,7 @@ module ActiveRecord
       end
 
       def call(sql, connection) # :nodoc:
+        return sql if query_to_filter?(sql)
         comment = self.comment(connection)
 
         if comment.blank?
@@ -221,6 +222,11 @@ module ActiveRecord
           comment.gsub!("*/", "* /")
           comment.gsub!("/*", "/ *")
           comment
+        end
+
+        def query_to_filter?(sql)
+          return false unless @filtered_queries
+          @filtered_queries[:full_sqls].include?(sql) || @filtered_queries[:sql_starts].any? { |sql_start| sql.start_with?(sql_start) }
         end
 
         def tag_content(connection)
